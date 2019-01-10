@@ -18,6 +18,9 @@ class Player:
     def __str__(self):
         return "%-20s %3d\n" % (self.name, self.score)
 
+    def __eq__(self, obj):
+        return isinstance(obj, Player) and obj.name == self.name
+
 
 class Squad:
 
@@ -82,7 +85,7 @@ class Squad:
         self._forwards.sort(key=lambda x: x.score, reverse=True)
 
     def best_lineup(self):
-        return Lineup.best_lineup(self)
+        return Lineup.find_best_lineup(self)
 
     def goalkeepers(self):
         return self._goalkeepers
@@ -97,14 +100,15 @@ class Squad:
         return self._forwards
 
 
-class Lineup:
+class Lineup(Squad):
 
     def __init__(self, formation):
-        self.players = []
-        self.formation = formation
+        lineup_name = "LINEUP %d %d %d" % (formation[0], formation[1], formation[2])
+        Squad.__init__(self, lineup_name)
+        self._formation = formation
 
     @staticmethod
-    def best_lineup(squad):
+    def find_best_lineup(squad):
         possible_formations = [
             (3, 4, 3),
             (3, 5, 2),
@@ -116,33 +120,47 @@ class Lineup:
         ]
         possible_lineups = []
         if type(squad) is Squad:
+            # Sorting by score we ensure that the low indexes are the best players
             squad.sort_by_score()
+
+            # One possible lineup is no lineup in other words 11 "INVALID PLAYERS we will use 3-4-3 formation"
+            temp_lineup = Lineup((3, 4, 3))
+            temp_lineup.add_player(Player("INVALID PLAYER", Position.GOALKEEPER, -4))
+            for i in range(0, 3):
+                temp_lineup.add_player(Player("INVALID PLAYER", Position.DEFENDER, -4))
+                temp_lineup.add_player(Player("INVALID PLAYER", Position.MIDFIELDER, -4))
+                temp_lineup.add_player(Player("INVALID PLAYER", Position.FORWARD, -4))
+            # Last midfielder missing is added here:
+            temp_lineup.add_player(Player("INVALID PLAYER", Position.MIDFIELDER, -4))
+            possible_lineups.append(temp_lineup)
+            # Normal iteration between all possibilities
             for formation in possible_formations:
                 temp_lineup = Lineup(formation)
                 try:
                     best_goalkeeper = squad.goalkeepers()[0]
-                    temp_lineup.lineup_a_player(best_goalkeeper)
+                    temp_lineup.add_player(best_goalkeeper)
                 except IndexError:
-                    temp_lineup.lineup_a_player(Player("INVALID PLAYER", Position.GOALKEEPER, -4))
+                    temp_lineup.add_player(Player("INVALID PLAYER", Position.GOALKEEPER, -4))
                 for i in range(0, formation[0]):
                     try:
                         best_defender = squad.defenders()[i]
-                        temp_lineup.lineup_a_player(best_defender)
+                        temp_lineup.add_player(best_defender)
                     except IndexError:
-                        temp_lineup.lineup_a_player(Player("INVALID PLAYER", Position.DEFENDER, -4))
+                        temp_lineup.add_player(Player("INVALID PLAYER", Position.DEFENDER, -4))
                 for i in range(0, formation[1]):
                     try:
                         best_midfielder = squad.midfielders()[i]
-                        temp_lineup.lineup_a_player(best_midfielder)
+                        temp_lineup.add_player(best_midfielder)
                     except IndexError:
-                        temp_lineup.lineup_a_player(Player("INVALID PLAYER", Position.MIDFIELDER, -4))
+                        temp_lineup.add_player(Player("INVALID PLAYER", Position.MIDFIELDER, -4))
                 for i in range(0, formation[2]):
                     try:
                         best_forward = squad.forwards()[i]
-                        temp_lineup.lineup_a_player(best_forward)
+                        temp_lineup.add_player(best_forward)
                     except IndexError:
-                        temp_lineup.lineup_a_player(Player("INVALID PLAYER", Position.FORWARD, -4))
+                        temp_lineup.add_player(Player("INVALID PLAYER", Position.FORWARD, -4))
                 possible_lineups.append(temp_lineup)
+            # Sorting lineups and returning the highest score
             possible_lineups.sort(key=lambda x: x.lineup_total_score(), reverse=True)
             return possible_lineups[0]
         else:
@@ -150,18 +168,23 @@ class Lineup:
 
     def lineup_total_score(self):
         total_score = 0
-        for player in self.players:
-            total_score += player.score
-        return total_score
-
-    def lineup_a_player(self, player):
-        self.players.append(player)
+        for p in self.goalkeepers():
+            total_score += p.score
+        for p in self.defenders():
+            total_score += p.score
+        for p in self.midfielders():
+            total_score += p.score
+        for p in self.forwards():
+            total_score += p.score
+        # If we don't lineup we get 0 points instead -44
+        invalid_player_counter = self.goalkeepers().count(Player("INVALID PLAYER", Position.GOALKEEPER, -4)) + \
+                                 self.defenders().count(Player("INVALID PLAYER", Position.DEFENDER, -4)) + \
+                                 self.midfielders().count(Player("INVALID PLAYER", Position.MIDFIELDER, -4)) + \
+                                 self.forwards().count(Player("INVALID PLAYER", Position.FORWARD, -4))
+        return total_score if invalid_player_counter < 11 else 0
 
     def __str__(self):
-        temp_squad = Squad("LINEUP %d %d %d" % (self.formation[0], self.formation[1], self.formation[2]))
-        for player in self.players:
-            temp_squad.add_player(player)
-        return temp_squad.__str__()+"===TOTAL SCORE  %d===" % (self.lineup_total_score())
+        return super().__str__() + "===TOTAL SCORE  %d===" % (self.lineup_total_score())
 
 
 # Possible formation

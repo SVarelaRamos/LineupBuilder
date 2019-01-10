@@ -17,6 +17,7 @@ my_players = [
     Player("Verde", Position.FORWARD, 6),
     Player("Santi Mina", Position.FORWARD, 16)
 ]
+
 my_squad = Squad("CarreiroTeam")
 for player in my_players:
     my_squad.add_player(player)
@@ -29,7 +30,7 @@ print(my_squad)
 
 print(my_squad.best_lineup())
 
-#Posible lineups
+# Posible lineups
 # 3-4-3
 # 3-5-2
 
